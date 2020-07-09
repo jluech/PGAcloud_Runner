@@ -11,5 +11,5 @@ ENTRYPOINT [ "python", "-m", "runner" ]
 
 # Manual image building
 # docker build -t pga-cloud-runner .
-# docker tag pga-cloud-manager jluech/pga-cloud-runner
+# docker tag pga-cloud-runner jluech/pga-cloud-runner
 # docker push jluech/pga-cloud-runner
