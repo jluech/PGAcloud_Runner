@@ -1,11 +1,17 @@
+import logging
+
 from flask import Flask, jsonify
+
+logging.basicConfig(level=logging.DEBUG)  # TODO: remove and reduce to INFO
+
 
 # App initialization.
 rnr = Flask(__name__)
 
 
-@rnr.route("/", methods=["GET"])
-def hello():
+@rnr.route("/<int:pga_id>", methods=["GET"])
+def hello(pga_id):
+    logging.debug("RECEIVED CALL FOR {}".format(pga_id))
     return jsonify({"hello": "world"})
 
 
