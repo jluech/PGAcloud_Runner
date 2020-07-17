@@ -9,6 +9,11 @@ logging.basicConfig(level=logging.DEBUG)  # TODO: remove and reduce to INFO
 rnr = Flask(__name__)
 
 
+@rnr.route("/status", methods=["GET"])
+def status():
+    return "OK"
+
+
 @rnr.route("/<int:pga_id>", methods=["GET"])
 def hello(pga_id):
     logging.debug("RECEIVED CALL FOR {}".format(pga_id))
