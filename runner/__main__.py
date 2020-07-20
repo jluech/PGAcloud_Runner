@@ -61,5 +61,53 @@ def init_population(pga_id):
     return make_response(jsonify(None), 204)
 
 
-if __name__ == '__main__':
-    rnr.run(host='0.0.0.0', debug=True)  # TODO: remove debug mode
+@rnr.route("/<int:pga_id>/start", methods=["PUT"])
+def start_pga(pga_id):
+    # init()
+    # get termination criteria
+    # assign generations_done counter = 0
+    # assign start time
+    # assign unchanged generations = 0
+    #
+    #
+    # run()
+    # listen to FE rMQ
+    # compare size of population against POP_SIZE property - error if too small, crop if too large
+    # while not terminated:
+    # assign and store population
+    # check for termination - if not done then proceed, else stop and report
+    # apply elitism and separate fittest
+    # package remaining population into individuals
+    # send individuals to SEL rMQ (queue mode)
+    # listen to FE queue
+    # combine elite and new population
+    # apply survival selection
+    # increase generations_done counter
+    #
+    #
+    # stop()
+    # assign and store population
+    # call MGR to report fittest individual(s) and remove operators
+    # this will leave the RUN and DB so that a user could search the DB
+
+    # Retrieve configuration.
+    # if
+    # config =
+
+    # Collect termination criteria.
+    max_generations = 1500
+    max_unchanged_generations = 300
+    max_time_seconds = 600
+    population_size = 100
+
+
+def run_pga():
+    pass
+
+
+def stop_pga():
+    pass
+
+
+if __name__ == "__main__":
+    rnr.run(host="0.0.0.0", debug=True)  # TODO: remove debug mode
