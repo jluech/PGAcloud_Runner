@@ -27,6 +27,7 @@ def init_properties(pga_id):
         ).get("properties")
     logging.debug("Distributing properties: {props_}".format(props_=properties_dict))
     # TODO 106: store properties in DB
+    return make_response(jsonify(None), 204)
 
 
 @rnr.route("/<int:pga_id>/population", methods=["POST"])
