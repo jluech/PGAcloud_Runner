@@ -63,6 +63,9 @@ def init_population(pga_id):
     logging.debug("Initializing population: {init_}".format(init_=generate_population))
 
     message_handler = get_message_handler(pga_id)
+    fitness_destination = config_dict.get("operators").get("FE").get("messaging")
+    runner_destination = config_dict.get("setups").get("RUN").get("messaging")
+    next_destinations = [fitness_destination, runner_destination]
 
     if generate_population:
         total_pop_size = config_dict.get("properties").get("POPULATION_SIZE")
@@ -77,12 +80,17 @@ def init_population(pga_id):
                         nodes_=init_nodes_amount,
                         split_=split_amount
                         ))
-        # TODO 106: send message with amount to generate per INIT to INIT rMQ (broadcast mode)
+
+        init_destination = config_dict.get("setups").get("INIT").get("messaging")
+        next_destinations.insert(0, init_destination)
+
+        message_handler.send_broadcast_to_init(payload=split_amount, destinations=next_destinations)
     else:
-        # TODO 106: assign and store population
-        # TODO 106: package population into individuals
-        # TODO 106: send individuals to FE rMQ (queue mode)
-        pass
+        population = []  # TODO 106: read population
+        pairs = utils.split_population_into_pairs(population)
+        for pair in pairs:
+            message_handler.send_message(pair=pair, remaining_destinations=next_destinations)
+
     return make_response(jsonify(None), 204)
 
 
