@@ -3,9 +3,13 @@ import math
 
 from flask import Flask, make_response, jsonify
 
+from database_handler.handlers import DatabaseHandlers
+from database_handler.redis_handler import RedisHandler
 from utilities import docker_utils, utils
 
 logging.basicConfig(level=logging.DEBUG)  # TODO: remove and reduce to INFO
+
+DATABASE_HANDLER = DatabaseHandlers.Redis
 
 
 # App initialization.
@@ -20,13 +24,28 @@ def status():
 @rnr.route("/<int:pga_id>/properties", methods=["PUT"])
 def init_properties(pga_id):
     # TODO 106: need to transmit properties with request or is docker config enough?
+    # Prepare properties to store.
     properties_dict = utils.parse_yaml("/{id_}{sep_}config.yml".format(
                 id_=pga_id,
                 sep_=docker_utils.PGA_NAME_SEPARATOR
             )
         ).get("properties")
+
+    logging.debug("Appending pga_id {id_} to properties.".format(id_=pga_id))
+    properties_dict["PGAcloud_pga_id"] = pga_id
+
     logging.debug("Distributing properties: {props_}".format(props_=properties_dict))
-    # TODO 106: store properties in DB
+
+    # Store properties in database for retrieval of other components.
+    database = get_database_handler(pga_id)
+    database.store(properties_dict)
+
+    # Log confirmation.
+    stored_properties = {}
+    for key in [*properties_dict]:
+        stored_properties[key] = database.retrieve(key)
+    logging.debug("Successfully stored properties: {stored_}".format(stored_=stored_properties))
+
     return make_response(jsonify(None), 204)
 
 
@@ -47,7 +66,7 @@ def init_population(pga_id):
         # generate at least as many individuals as required
         # if population size exceeds the POPULATION_SIZE property, the population will be cropped when starting the PGA
 
-        logging.debug("Delegating generation of {size_} individuals to {nodes_} nodes "
+        logging.debug("Delegating generating {size_} individuals to {nodes_} nodes "
                       "with {split_} individuals per node.".format(
                         size_=total_pop_size,
                         nodes_=init_nodes_amount,
@@ -108,6 +127,13 @@ def run_pga():
 
 def stop_pga():
     pass
+
+
+def get_database_handler(pga_id):
+    if DATABASE_HANDLER == DatabaseHandlers.Redis:
+        return RedisHandler(pga_id)
+    else:
+        raise Exception("No valid DatabaseHandler defined!")
 
 
 if __name__ == "__main__":
