@@ -7,12 +7,6 @@ from message_handler.message_handler import MessageHandler
 
 QUEUE_NAME = "generation"
 
-# Establish connection to rabbitMQ.
-connection = pika.BlockingConnection(pika.ConnectionParameters(
-    host="rabbitMQ",
-    credentials=pika.PlainCredentials("rabbit", "MQ")
-))
-
 
 def receive_evaluated_individuals_callback(ch, method, properties, body):
     population = body.get("payload")
@@ -31,10 +25,7 @@ def receive_evaluated_individuals_callback(ch, method, properties, body):
     #     )
 
 
-def send_message_to_queue(destinations, payload):
-    # Define communication channel.
-    channel = connection.channel()
-
+def send_message_to_queue(channel, destinations, payload):
     # This will create the exchange if it doesn't already exist.
     logging.debug(destinations)  # TODO: remove logs
     next_recipient = destinations.pop(index=0)
@@ -60,12 +51,16 @@ def send_message_to_queue(destinations, payload):
 
 
 class RabbitMessageQueue(MessageHandler):
-    def __init__(self):
-        pass
+    def __init__(self, pga_id):
+        # Establish connection to rabbitMQ.
+        self.connection = pika.BlockingConnection(pika.ConnectionParameters(
+            host="rabbitMQ--{id_}".format(id_=pga_id),
+            # credentials=pika.PlainCredentials("rabbit", "MQ")
+        ))
 
     def receive_messages(self):
         # Define communication channel.
-        channel = connection.channel()
+        channel = self.connection.channel()
 
         # Create queue for selection.
         channel.queue_declare(queue=QUEUE_NAME, durable=True)
@@ -82,7 +77,13 @@ class RabbitMessageQueue(MessageHandler):
         channel.start_consuming()
 
         # Close connection when finished. TODO: check if prematurely closing connection
-        connection.close()
+        self.connection.close()
 
     def send_message(self, pair, remaining_destinations):
-        send_message_to_queue(remaining_destinations, pair)
+        # Define communication channel.
+        channel = self.connection.channel()
+        send_message_to_queue(
+            channel=channel,
+            destinations=remaining_destinations,
+            payload=pair
+        )
