@@ -31,7 +31,7 @@ def send_message_to_queue(channel, destinations, payload):
     next_recipient = destinations.pop(index=0)
     logging.debug(destinations)
 
-    channel.exchange_declare(exchange="", routing_key=next_recipient, durable=True)
+    channel.exchange_declare(exchange="", routing_key=next_recipient, auto_delete=True, durable=True)
 
     # Send message to given recipient.
     channel.basic_publish(
@@ -86,4 +86,26 @@ class RabbitMessageQueue(MessageHandler):
             channel=channel,
             destinations=remaining_destinations,
             payload=pair
+        )
+
+    def send_broadcast_to_init(self, payload, destinations):
+        # Define communication channel.
+        channel = self.connection.channel()
+
+        # Create the exchange if it doesn't exist already.
+        channel.exchange_declare(exchange="initializer", exchange_type="fanout", auto_delete=True, durable=True)
+
+        # Send message to given recipient.
+        channel.basic_publish(
+            exchange="initializer",
+            body=json.dumps({
+                "destinations": destinations,
+                "payload": payload
+            }),
+            # Delivery mode 2 makes the broker save the message to disk.
+            # This will ensure that the message be restored on reboot even
+            # if RabbitMQ crashes before having forwarded the message.
+            properties=pika.BasicProperties(
+                delivery_mode=2,
+            ),
         )
