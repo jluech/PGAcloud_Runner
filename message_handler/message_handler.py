@@ -3,7 +3,8 @@ from abc import ABC, abstractmethod
 
 class MessageHandler(ABC):
     @abstractmethod
-    def __init__(self):
+    def __init__(self, pga_id):
+        # pga_id required to identify the specific messaging service
         pass
 
     @abstractmethod

@@ -5,11 +5,14 @@ from flask import Flask, make_response, jsonify
 
 from database_handler.handlers import DatabaseHandlers
 from database_handler.redis_handler import RedisHandler
+from message_handler.handlers import MessageHandlers
+from message_handler.rabbit_message_queue import RabbitMessageQueue
 from utilities import docker_utils, utils
 
 logging.basicConfig(level=logging.DEBUG)  # TODO: remove and reduce to INFO
 
 DATABASE_HANDLER = DatabaseHandlers.Redis
+MESSAGE_HANDLER = MessageHandlers.RabbitMQ
 
 
 # App initialization.
@@ -58,6 +61,8 @@ def init_population(pga_id):
 
     generate_population = not config_dict.get("population").get("use_initial_population")
     logging.debug("Initializing population: {init_}".format(init_=generate_population))
+
+    message_handler = get_message_handler(pga_id)
 
     if generate_population:
         total_pop_size = config_dict.get("properties").get("POPULATION_SIZE")
@@ -134,6 +139,13 @@ def get_database_handler(pga_id):
         return RedisHandler(pga_id)
     else:
         raise Exception("No valid DatabaseHandler defined!")
+
+
+def get_message_handler(pga_id):
+    if MESSAGE_HANDLER == MessageHandlers.RabbitMQ:
+        return RabbitMessageQueue(pga_id)
+    else:
+        raise Exception("No valid MessageHandler defined!")
 
 
 if __name__ == "__main__":
