@@ -8,7 +8,7 @@ from message_handler.message_handler import MessageHandler
 QUEUE_NAME = "generation"
 
 
-def receive_evaluated_individuals_callback(ch, method, properties, body):
+def receive_evaluated_individuals_callback(channel, method, properties, body):
     population = body.get("payload")
     logging.debug("rMQ:{queue_}: Received evaluated individuals: {pop_}".format(
         queue_=QUEUE_NAME,
@@ -55,7 +55,7 @@ class RabbitMessageQueue(MessageHandler):
         # Establish connection to rabbitMQ.
         self.connection = pika.BlockingConnection(pika.ConnectionParameters(
             host="rabbitMQ--{id_}".format(id_=pga_id),
-            # credentials=pika.PlainCredentials("rabbit", "MQ")
+            socket_timeout=30,
         ))
 
     def receive_messages(self):
@@ -98,6 +98,7 @@ class RabbitMessageQueue(MessageHandler):
         # Send message to given recipient.
         channel.basic_publish(
             exchange="initializer",
+            routing_key="",
             body=json.dumps({
                 "destinations": destinations,
                 "payload": payload
