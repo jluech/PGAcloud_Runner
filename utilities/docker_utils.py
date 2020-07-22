@@ -1,1 +1,0 @@
-PGA_NAME_SEPARATOR = "--"
