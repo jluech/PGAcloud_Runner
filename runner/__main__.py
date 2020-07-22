@@ -133,6 +133,8 @@ def start_pga(pga_id):
     max_time_seconds = 600
     population_size = 100
 
+    return make_response(jsonify({"id": pga_id}), 200)
+
 
 def run_pga():
     pass
