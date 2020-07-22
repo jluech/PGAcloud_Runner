@@ -34,10 +34,10 @@ def init_properties(pga_id):
             )
         ).get("properties")
 
-    logging.debug("Appending pga_id {id_} to properties.".format(id_=pga_id))
+    logging.info("Appending pga_id {id_} to properties.".format(id_=pga_id))
     properties_dict["PGAcloud_pga_id"] = pga_id
 
-    logging.debug("Distributing properties: {props_}".format(props_=properties_dict))
+    logging.info("Distributing properties: {props_}".format(props_=properties_dict))
 
     # Store properties in database for retrieval of other components.
     database = get_database_handler(pga_id)
@@ -47,7 +47,7 @@ def init_properties(pga_id):
     stored_properties = {}
     for key in [*properties_dict]:
         stored_properties[key] = database.retrieve(key)
-    logging.debug("Successfully stored properties: {stored_}".format(stored_=stored_properties))
+    logging.info("Successfully stored properties: {stored_}".format(stored_=stored_properties))
 
     return make_response(jsonify(None), 204)
 
@@ -60,7 +60,7 @@ def init_population(pga_id):
     ))
 
     generate_population = not config_dict.get("population").get("use_initial_population")
-    logging.debug("Initializing population: {init_}".format(init_=generate_population))
+    logging.info("Initializing population: {init_}".format(init_=generate_population))
 
     message_handler = get_message_handler(pga_id)
     fitness_destination = config_dict.get("operators").get("FE").get("messaging")
@@ -74,8 +74,8 @@ def init_population(pga_id):
         # generate at least as many individuals as required
         # if population size exceeds the POPULATION_SIZE property, the population will be cropped when starting the PGA
 
-        logging.debug("Delegating generating {size_} individuals to {nodes_} nodes "
-                      "with {split_} individuals per node.".format(
+        logging.info("Delegating generating {size_} individuals to {nodes_} nodes "
+                     "with {split_} individuals per node.".format(
                         size_=total_pop_size,
                         nodes_=init_nodes_amount,
                         split_=split_amount
