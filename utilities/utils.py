@@ -2,6 +2,8 @@ import yaml
 
 from population.pair import Pair
 
+PGA_NAME_SEPARATOR = "--"
+
 
 def parse_yaml(yaml_file_path):
     with open(yaml_file_path, mode="r", encoding="utf-8") as yaml_file:

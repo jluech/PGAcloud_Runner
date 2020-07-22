@@ -7,7 +7,7 @@ from database_handler.handlers import DatabaseHandlers
 from database_handler.redis_handler import RedisHandler
 from message_handler.handlers import MessageHandlers
 from message_handler.rabbit_message_queue import RabbitMessageQueue
-from utilities import docker_utils, utils
+from utilities import utils
 
 logging.basicConfig(level=logging.DEBUG)  # TODO: remove and reduce to INFO
 
@@ -30,7 +30,7 @@ def init_properties(pga_id):
     # Prepare properties to store.
     properties_dict = utils.parse_yaml("/{id_}{sep_}config.yml".format(
                 id_=pga_id,
-                sep_=docker_utils.PGA_NAME_SEPARATOR
+                sep_=utils.PGA_NAME_SEPARATOR
             )
         ).get("properties")
 
@@ -56,7 +56,7 @@ def init_properties(pga_id):
 def init_population(pga_id):
     config_dict = utils.parse_yaml("/{id_}{sep_}config.yml".format(
         id_=pga_id,
-        sep_=docker_utils.PGA_NAME_SEPARATOR
+        sep_=utils.PGA_NAME_SEPARATOR
     ))
 
     generate_population = not config_dict.get("population").get("use_initial_population")
