@@ -136,6 +136,12 @@ def start_pga(pga_id):
     return make_response(jsonify({"id": pga_id}), 200)
 
 
+@rnr.route("/<int:pga_id>/stop")
+def abort_pga(pga_id):
+    # TODO 108: implement aborting the given PGA, at least call stop_pga()
+    pass
+
+
 def run_pga():
     pass
 
