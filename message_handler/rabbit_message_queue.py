@@ -10,11 +10,16 @@ QUEUE_NAME = "generation"
 
 def receive_evaluated_individuals_callback(channel, method, properties, body):
     population = body.get("payload")
-    logging.debug("rMQ:{queue_}: Received evaluated individuals: {pop_}".format(
+    logging.info("rMQ:{queue_}: Received evaluated individuals: {pop_}".format(
         queue_=QUEUE_NAME,
         pop_=population,
     ))
     logging.debug(body)  # TODO: remove
+
+    # TODO 106: continue = utils.save_received_individual(body)
+    #  - utils holds the population, appends the individual, checks if there are all individuals
+    #  - returns true if there are missing, false if complete
+    #  -> if not continue then channel.stop_consuming()
     #
     # pairs = apply_selection(population)
     # for pair in pairs:
@@ -34,6 +39,10 @@ def send_message_to_queue(channel, destinations, payload):
     channel.exchange_declare(exchange="", routing_key=next_recipient, auto_delete=True, durable=True)
 
     # Send message to given recipient.
+    logging.info("rMQ: Sending {body_} to destinations {dest_}.".format(
+        body_=payload,
+        dest_=destinations,
+    ))
     channel.basic_publish(
         exchange="",
         routing_key=next_recipient,
@@ -71,7 +80,7 @@ class RabbitMessageQueue(MessageHandler):
             on_message_callback=receive_evaluated_individuals_callback,
             auto_ack=True
         )
-        logging.debug("rMQ:{queue_}: Waiting for selection requests.".format(
+        logging.info("rMQ:{queue_}: Waiting for selection requests.".format(
             queue_=QUEUE_NAME
         ))
         channel.start_consuming()
@@ -96,6 +105,10 @@ class RabbitMessageQueue(MessageHandler):
         channel.exchange_declare(exchange="initializer", exchange_type="fanout", auto_delete=True, durable=True)
 
         # Send message to given recipient.
+        logging.info("rMQ: Sending '{body_}' to destinations {dest_}.".format(
+            body_=payload,
+            dest_=destinations,
+        ))
         channel.basic_publish(
             exchange="initializer",
             routing_key="",
