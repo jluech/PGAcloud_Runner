@@ -1,6 +1,9 @@
 import logging
 import math
+import time
+import warnings
 
+import requests
 from flask import Flask, make_response, jsonify
 
 from database_handler.handlers import DatabaseHandlers
@@ -13,6 +16,9 @@ logging.basicConfig(level=logging.DEBUG)  # TODO: remove and reduce to INFO
 
 DATABASE_HANDLER = DatabaseHandlers.Redis
 MESSAGE_HANDLER = MessageHandlers.RabbitMQ
+RELEVANT_PROPERTIES = ["POPULATION_SIZE", "ELITISM_RATE"]
+
+__ABORTING = False
 
 
 # App initialization.
@@ -91,63 +97,149 @@ def init_population(pga_id):
         for pair in pairs:
             message_handler.send_message(pair=pair, remaining_destinations=next_destinations)
 
-    return make_response(jsonify(None), 204)
+    return make_response(jsonify(None), 201)
 
 
 @rnr.route("/<int:pga_id>/start", methods=["PUT"])
 def start_pga(pga_id):
-    # init()
-    # get termination criteria
-    # assign generations_done counter = 0
-    # assign start time
-    # assign unchanged generations = 0
-    #
-    #
-    # run()
-    # listen to FE rMQ
-    # compare size of population against POP_SIZE property - error if too small, crop if too large
-    # while not terminated:
-    # assign and store population
-    # check for termination - if not done then proceed, else stop and report
-    # apply elitism and separate fittest
-    # package remaining population into individuals
-    # send individuals to SEL rMQ (queue mode)
-    # listen to FE queue
-    # combine elite and new population
-    # apply survival selection
-    # increase generations_done counter
-    #
-    #
-    # stop()
-    # assign and store population
-    # call MGR to report fittest individual(s) and remove operators
-    # this will leave the RUN and DB so that a user could search the DB
+    population = run_pga(pga_id)
+    stop_pga(pga_id, population)
 
-    # Retrieve configuration.
-    # if
-    # config =
+    return make_response(jsonify({"id": pga_id}), 204)
 
-    # Collect termination criteria.
+
+@rnr.route("/stop")
+def abort_pga():
+    global __ABORTING
+    __ABORTING = True
+    return make_response(jsonify(None), 202)
+
+
+def run_pga(pga_id):
+    # Collect termination criteria. TODO: retrieve from config file
     max_generations = 1500
-    max_unchanged_generations = 300
+    max_unimproved_generations = 300
     max_time_seconds = 600
-    population_size = 100
 
-    return make_response(jsonify({"id": pga_id}), 200)
+    # Get support handlers.
+    database_handler = get_database_handler(pga_id)
+    message_handler = get_message_handler(pga_id)
+
+    # Set relevant properties.
+    for prop in RELEVANT_PROPERTIES:  # TODO: retrieve relevant list from config file
+        value = database_handler.retrieve(prop)
+        utils.set_property(prop, value)
+    elitism_rate = float(utils.get_property("ELITISM_RATE"))
+
+    # Initialize population and settings.
+    message_handler.receive_messages()
+    population = utils.collect_and_reset_received_individuals()
+    population_size = int(utils.get_property("POPULATION_SIZE"))
+    # Crop population if too large.
+    if population.__len__() > population_size:
+        warnings.warn("Population too large! Expected {exp_} - Actual {act_}".format(
+            exp_=population_size,
+            act_=population.__len__()
+        ))
+        logging.info("Cropping population to defined size.")
+        population = population[:population_size]
+    elif population.__len__() < population_size:
+        warnings.warn("Population not large enough! Expected {exp_} - Actual {act_}".format(
+            exp_=population_size,
+            act_=population.__len__()
+        ))
+
+    # Prepare generation handling.
+    model = []  # TODO: retrieve model and next destinations from config file
+    generations_done = 0
+    unimproved_generations = 0
+    pga_runtime = 0
+    pga_start_time = time.perf_counter()
+
+    while (generations_done < max_generations
+           and unimproved_generations < max_unimproved_generations
+           and pga_runtime < max_time_seconds):
+        # Store population in database.
+        database_handler.store(population)
+        old_fittest = population[0]
+
+        # Check if an abort request was issued.
+        if __ABORTING:
+            break
+
+        # Apply elitism.
+        sorted_population = utils.sort_population_by_fitness(population)
+        elite_portion = math.floor(sorted_population.__len__() * elitism_rate)
+        elite = sorted_population[:elite_portion]
+
+        # Package population into individuals and release to model.
+        individuals = utils.split_population_into_pairs(sorted_population)
+        for ind in individuals:
+            message_handler.send_message(ind, model)
+
+        # Listen to FE queue.
+        message_handler.receive_messages()
+        new_individuals = utils.collect_and_reset_received_individuals()
+
+        # Crop new population if too large.
+        if new_individuals.__len__() > population_size:
+            new_individuals = new_individuals[:population_size]
+        elif new_individuals.__len__() < population_size:
+            warnings.warn("Population not large enough! Expected {exp_} - Actual {act_}".format(
+                exp_=population_size,
+                act_=population.__len__()
+            ))
+
+        # Combine elite and returning individuals, sort by fitness.
+        sorted_population = utils.sort_population_by_fitness(elite + new_individuals)
+
+        # Apply survival selection.
+        population = select_survivors(sorted_population, elite_portion)
+
+        # Finish generation.
+        generations_done += 1
+        if old_fittest.fitness >= population[0].fitness:
+            unimproved_generations += 1
+        else:
+            unimproved_generations = 0
+        pga_runtime = time.perf_counter() - pga_start_time
+
+    return population
 
 
-@rnr.route("/<int:pga_id>/stop")
-def abort_pga(pga_id):
-    # TODO 108: implement aborting the given PGA, at least call stop_pga()
-    pass
+def stop_pga(pga_id, population):
+    # Get support handlers.
+    database_handler = get_database_handler(pga_id)
+
+    # Retrieve config file.
+    config = {}  # TODO:
+
+    # Store population and determine fittest individual.
+    sorted_population = utils.sort_population_by_fitness(population)
+    database_handler.store(sorted_population)
+    fittest = sorted_population[0]
+
+    # TODO: check if manager is blocking until finished. If so, return fittest in regular /start call
+    # if __ABORTING then the fittest will be returned by the /start thread and not by /abort thread
+
+    # Call MGR to report fittest individual and remove operators.
+    # This will leave the RUN and DB so that a user could search the DB.
+    requests.put(
+        url="http://{host_}:{port_}/pga/{id_}/result".format(
+            host_=config.get("master_host"),
+            port_=config.get("master_port"),
+            id_=pga_id
+        ),
+        params={
+            "orchestrator": config.get("orchestrator"),
+        },
+        data=jsonify({"solution": fittest.solution, "fitness": fittest.fitness}),
+        verify=False
+    )
 
 
-def run_pga():
-    pass
-
-
-def stop_pga():
-    pass
+def select_survivors(sorted_population, kill_ratio):
+    return sorted_population[:-kill_ratio]  # fittest first, so remove at back end.
 
 
 def get_database_handler(pga_id):
