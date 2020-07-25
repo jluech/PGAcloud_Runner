@@ -4,6 +4,7 @@ import logging
 import pika
 
 from message_handler.message_handler import MessageHandler
+from utilities import utils
 
 QUEUE_NAME = "generation"
 
@@ -16,18 +17,12 @@ def receive_evaluated_individuals_callback(channel, method, properties, body):
     ))
     logging.debug(body)  # TODO: remove
 
-    # TODO 106: continue = utils.save_received_individual(body)
-    #  - utils holds the population, appends the individual, checks if there are all individuals
-    #  - returns true if there are missing, false if complete
-    #  -> if not continue then channel.stop_consuming()
-    #
-    # pairs = apply_selection(population)
-    # for pair in pairs:
-    #     remaining_destinations = body.get("destinations")
-    #     send_message_to_queue(
-    #         destinations=remaining_destinations,
-    #         payload=pair
-    #     )
+    received_all = utils.save_received_individual(body)
+    if received_all:
+        channel.stop_consuming()
+        logging.info("rMQ:{queue_}: Stopped consuming.".format(
+            queue_=QUEUE_NAME,
+        ))
 
 
 def send_message_to_queue(channel, destinations, payload):
@@ -71,7 +66,7 @@ class RabbitMessageQueue(MessageHandler):
         # Define communication channel.
         channel = self.connection.channel()
 
-        # Create queue for selection.
+        # Create queue for returning individuals as end of one generation.
         channel.queue_declare(queue=QUEUE_NAME, durable=True)
 
         # Actively listen for messages in queue and perform callback on receive.
@@ -80,7 +75,7 @@ class RabbitMessageQueue(MessageHandler):
             on_message_callback=receive_evaluated_individuals_callback,
             auto_ack=True
         )
-        logging.info("rMQ:{queue_}: Waiting for selection requests.".format(
+        logging.info("rMQ:{queue_}: Waiting for generation individuals feedback.".format(
             queue_=QUEUE_NAME
         ))
         channel.start_consuming()
