@@ -70,10 +70,12 @@ def init_population(pga_id):
     generate_population = not config_dict.get("population").get("use_initial_population")
     logging.info("Initializing population: {init_}".format(init_=generate_population))
 
+    # Retrieve first recipients: initialization is index 0 to 2, rest is pga chain
     message_handler = get_message_handler(pga_id)
-    fitness_destination = config_dict.get("operators").get("FE").get("messaging")
-    runner_destination = config_dict.get("setups").get("RUN").get("messaging")
-    next_destinations = [fitness_destination, runner_destination]
+    fitness_destination = utils.get_messaging_init()[1]
+    runner_destination = utils.get_messaging_init()[2]
+    # next_destinations = [fitness_destination, runner_destination]
+    next_destinations = [runner_destination]  # TODO: replace with original
 
     if generate_population:
         total_pop_size = config_dict.get("properties").get("POPULATION_SIZE")
@@ -89,10 +91,10 @@ def init_population(pga_id):
                         split_=split_amount
                         ))
 
-        init_destination = config_dict.get("setups").get("INIT").get("messaging")
+        init_destination = utils.get_messaging_init()[0]
         next_destinations.insert(0, init_destination)
 
-        message_handler.send_broadcast_to_init(payload=split_amount, destinations=next_destinations)
+        message_handler.send_broadcast_to_init(amount=split_amount, next_destinations=next_destinations)
     else:
         population = []  # TODO 106: read population
         pairs = utils.split_population_into_pairs(population)
