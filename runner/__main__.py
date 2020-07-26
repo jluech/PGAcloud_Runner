@@ -167,6 +167,8 @@ def run_pga(pga_id):
     while (generations_done < max_generations
            and unimproved_generations < max_unimproved_generations
            and pga_runtime < max_time_seconds):
+        logging.info("Starting new generation: {gen_}".format(gen_=generations_done+1))
+
         # Store population in database.
         logging.info("Storing population.")
         database_handler.store_population(population)
@@ -174,14 +176,17 @@ def run_pga(pga_id):
 
         # Check if an abort request was issued.
         if __ABORTING:
+            logging.info("ATTENTION: Aborting PGA!")
             break
 
         # Apply elitism.
+        logging.info("Applying elitism to current population.")
         sorted_population = utils.sort_population_by_fitness(population)
         elite_portion = math.floor(sorted_population.__len__() * elitism_rate)
         elite = sorted_population[:elite_portion]
 
         # Package population into individuals and release to model.
+        logging.info("Releasing population to model.")
         individuals = utils.split_population_into_pairs(sorted_population)
         for ind in individuals:
             message_handler.send_message(ind, model)
@@ -192,6 +197,10 @@ def run_pga(pga_id):
 
         # Crop new population if too large.
         if new_individuals.__len__() > population_size:
+            logging.info("Cropping oversized population! Expected {exp_} - Actual {act_}".format(
+                exp_=population_size,
+                act_=population.__len__()
+            ))
             new_individuals = new_individuals[:population_size]
         elif new_individuals.__len__() < population_size:
             warnings.warn("Population not large enough! Expected {exp_} - Actual {act_}".format(
@@ -200,17 +209,21 @@ def run_pga(pga_id):
             ))
 
         # Combine elite and returning individuals, sort by fitness.
+        logging.info("Sorting population.")
         sorted_population = utils.sort_population_by_fitness(elite + new_individuals)
 
         # Apply survival selection.
+        logging.info("Applying survival selection to population.")
         population = select_survivors(sorted_population, elite_portion)
 
         # Finish generation.
         generations_done += 1
         if old_fittest.fitness >= population[0].fitness:
             unimproved_generations += 1
+            logging.info("Finished generation {gen_} - unimproved.".format(gen_=generations_done))
         else:
             unimproved_generations = 0
+            logging.info("Finished generation {gen_} - improved individuals.".format(gen_=generations_done))
         pga_runtime = time.perf_counter() - pga_start_time
 
     return population
@@ -224,27 +237,16 @@ def stop_pga(pga_id, population):
     config = {}  # TODO:
 
     # Store population and determine fittest individual.
+    logging.info("Storing final population.")
     sorted_population = utils.sort_population_by_fitness(population)
     database_handler.store_population(sorted_population)
     fittest = sorted_population[0]
 
-    # TODO: check if manager is blocking until finished. If so, return fittest in regular /start call
-    # if __ABORTING then the fittest will be returned by the /start thread and not by /abort thread
-
-    # Call MGR to report fittest individual and remove operators.
-    # This will leave the RUN and DB so that a user could search the DB.
-    requests.put(
-        url="http://{host_}:{port_}/pga/{id_}/result".format(
-            host_=config.get("master_host"),
-            port_=config.get("master_port"),
-            id_=pga_id
-        ),
-        params={
-            "orchestrator": config.get("orchestrator"),
-        },
-        data=jsonify({"solution": fittest.solution, "fitness": fittest.fitness}),
-        verify=False
-    )
+    logging.info("Terminating PGA. Fittest individual: fit={fit_}, sol={sol_}".format(
+        fit_=fittest.fitness,
+        sol_=fittest.solution,
+    ))
+    return fittest
 
 
 def select_survivors(sorted_population, kill_ratio):
