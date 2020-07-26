@@ -1,8 +1,13 @@
+import logging
+import os
+from re import match
+
 import yaml
 
 from population.pair import Pair
 
 PGA_NAME_SEPARATOR = "--"
+__CONTAINER_CONF = None
 __PROPERTIES = {}
 __EVALUATED_INDIVIDUALS = []
 
@@ -46,6 +51,47 @@ def split_population_into_pairs(population):
     for i in range(half_point):
         pairs.append(Pair(first[i], second[i]))
     return pairs
+
+
+# Commands for properties
+def get_messaging_source():
+    if not __CONTAINER_CONF:
+        __retrieve_container_config()
+    return __CONTAINER_CONF["source"]
+
+
+def get_messaging_init():
+    if not __CONTAINER_CONF:
+        __retrieve_container_config()
+    return __CONTAINER_CONF["init"]
+
+
+def get_messaging_chain():
+    if not __CONTAINER_CONF:
+        __retrieve_container_config()
+    return __CONTAINER_CONF["chain"]
+
+
+def get_pga_id():
+    if not __CONTAINER_CONF:
+        __retrieve_container_config()
+    return __CONTAINER_CONF["pga_id"]
+
+
+def __retrieve_container_config():
+    # Retrieve locally saved config file.
+    files = [f for f in os.listdir("/") if match(r'[0-9]+--selection-config\.yml', f)]
+    # https://stackoverflow.com/questions/2225564/get-a-filtered-list-of-files-in-a-directory/2225927#2225927
+    # https://regex101.com/
+
+    if not files.__len__() > 0:
+        raise Exception("Error retrieving the container config: No matching config file found!")
+    config = parse_yaml("/{}".format(files[0]))
+    __CONTAINER_CONF["pga_id"] = config.get("pga_id")
+    __CONTAINER_CONF["source"] = config.get("source")
+    __CONTAINER_CONF["init"] = config.get("init")
+    __CONTAINER_CONF["chain"] = config.get("chain")
+    logging.info("Container config retrieved: {conf_}".format(conf_=__CONTAINER_CONF))
 
 
 def get_property(property_key):
