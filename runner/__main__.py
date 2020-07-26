@@ -1,18 +1,20 @@
+import json
 import logging
 import math
 import time
 import warnings
 
-import requests
 from flask import Flask, make_response, jsonify
 
 from database_handler.handlers import DatabaseHandlers
 from database_handler.redis_handler import RedisHandler
 from message_handler.handlers import MessageHandlers
 from message_handler.rabbit_message_queue import RabbitMessageQueue
+from population.individual import Individual, IndividualEncoder
+from population.pair import Pair
 from utilities import utils
 
-logging.basicConfig(level=logging.DEBUG)  # TODO: remove and reduce to INFO
+logging.basicConfig(level=logging.INFO)
 
 DATABASE_HANDLER = DatabaseHandlers.Redis
 MESSAGE_HANDLER = MessageHandlers.RabbitMQ
@@ -47,7 +49,7 @@ def init_properties(pga_id):
 
     # Store properties in database for retrieval of other components.
     database = get_database_handler(pga_id)
-    database.store(properties_dict)
+    database.store_properties(properties_dict)
 
     # Log confirmation.
     stored_properties = {}
@@ -95,7 +97,11 @@ def init_population(pga_id):
         population = []  # TODO 106: read population
         pairs = utils.split_population_into_pairs(population)
         for pair in pairs:
-            message_handler.send_message(pair=pair, remaining_destinations=next_destinations)
+            message_handler.send_message(individual=pair, remaining_destinations=next_destinations)
+
+        # Store current population.
+        database_handler = get_database_handler(pga_id)
+        database_handler.store_population(population)
 
     return make_response(jsonify(None), 201)
 
@@ -160,7 +166,8 @@ def run_pga(pga_id):
            and unimproved_generations < max_unimproved_generations
            and pga_runtime < max_time_seconds):
         # Store population in database.
-        database_handler.store(population)
+        logging.info("Storing population.")
+        database_handler.store_population(population)
         old_fittest = population[0]
 
         # Check if an abort request was issued.
@@ -216,7 +223,7 @@ def stop_pga(pga_id, population):
 
     # Store population and determine fittest individual.
     sorted_population = utils.sort_population_by_fitness(population)
-    database_handler.store(sorted_population)
+    database_handler.store_population(sorted_population)
     fittest = sorted_population[0]
 
     # TODO: check if manager is blocking until finished. If so, return fittest in regular /start call
