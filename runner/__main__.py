@@ -67,7 +67,10 @@ def init_population(pga_id):
         sep_=utils.PGA_NAME_SEPARATOR
     ))
 
-    generate_population = not config_dict.get("population").get("use_initial_population")
+    use_initial_population = config_dict.get("population").get("use_initial_population")
+    generate_population = False
+    if not use_initial_population:
+        generate_population = True
     logging.info("Initializing population: {init_}".format(init_=generate_population))
 
     # Retrieve first recipients: initialization is index 0 to 2, rest is pga chain
@@ -96,10 +99,16 @@ def init_population(pga_id):
 
         message_handler.send_broadcast_to_init(amount=split_amount, next_destinations=next_destinations)
     else:
-        population = []  # TODO 106: read population
-        pairs = utils.split_population_into_pairs(population)
-        for pair in pairs:
-            message_handler.send_message(individual=pair, remaining_destinations=next_destinations)
+        # Read and parse provided population.
+        population_path = config_dict.get("population").get("population_file_path")
+        solutions = utils.parse_yaml(population_path)
+        population = []
+        for solution in solutions:
+            population.append(Individual(solution))
+
+        # Send individuals to fitness evaluation.
+        for ind in population:
+            message_handler.send_message(individual=ind, remaining_destinations=next_destinations)
 
         # Store current population.
         database_handler = get_database_handler(pga_id)
@@ -110,10 +119,22 @@ def init_population(pga_id):
 
 @rnr.route("/<int:pga_id>/start", methods=["PUT"])
 def start_pga(pga_id):
-    population = run_pga(pga_id)
-    stop_pga(pga_id, population)
+    message_handler = get_message_handler(pga_id)
+    SEL = "selection"
+    CO = "crossover"
+    MUT = "mutation"
+    runner = "generation"
+    next_destinations = [SEL, CO, MUT, runner]
+    message_handler.send_message(Pair(Individual("100"), Individual("001")), next_destinations)
+    # TODO: remove entire message chain here since it's only for roundtrip testing
 
-    return make_response(jsonify({"id": pga_id}), 204)
+    population = run_pga(pga_id)
+    fittest = stop_pga(pga_id, population)
+
+    return make_response(jsonify({
+        "id": pga_id,
+        "fittest": json.dumps(fittest, cls=IndividualEncoder)
+    }), 204)
 
 
 @rnr.route("/stop")
@@ -124,17 +145,21 @@ def abort_pga():
 
 
 def run_pga(pga_id):
-    # Collect termination criteria. TODO: retrieve from config file
-    max_generations = 1500
-    max_unimproved_generations = 300
-    max_time_seconds = 600
-
     # Get support handlers.
     database_handler = get_database_handler(pga_id)
     message_handler = get_message_handler(pga_id)
 
+    # Collect termination criteria.
+    config_dict = utils.parse_yaml("/{id_}{sep_}config.yml".format(
+        id_=pga_id,
+        sep_=utils.PGA_NAME_SEPARATOR
+    ))
+    max_generations = config_dict.get("properties").get("MAX_GENERATIONS")
+    max_unimproved_generations = config_dict.get("properties").get("MAX_UNIMPROVED_GENERATIONS")
+    max_time_seconds = config_dict.get("properties").get("MAX_TIME_SECONDS")
+
     # Set relevant properties.
-    for prop in RELEVANT_PROPERTIES:  # TODO: retrieve relevant list from config file
+    for prop in RELEVANT_PROPERTIES:  # TODO: retrieve relevant list from container config file?
         value = database_handler.retrieve(prop)
         utils.set_property(prop, value)
     elitism_rate = float(utils.get_property("ELITISM_RATE"))
@@ -158,7 +183,6 @@ def run_pga(pga_id):
         ))
 
     # Prepare generation handling.
-    model = []  # TODO: retrieve model and next destinations from config file
     generations_done = 0
     unimproved_generations = 0
     pga_runtime = 0
@@ -188,8 +212,9 @@ def run_pga(pga_id):
         # Package population into individuals and release to model.
         logging.info("Releasing population to model.")
         individuals = utils.split_population_into_pairs(sorted_population)
+        pga_chain = utils.get_messaging_chain()
         for ind in individuals:
-            message_handler.send_message(ind, model)
+            message_handler.send_message(ind, pga_chain)
 
         # Listen to FE queue.
         message_handler.receive_messages()
@@ -233,9 +258,6 @@ def stop_pga(pga_id, population):
     # Get support handlers.
     database_handler = get_database_handler(pga_id)
 
-    # Retrieve config file.
-    config = {}  # TODO:
-
     # Store population and determine fittest individual.
     logging.info("Storing final population.")
     sorted_population = utils.sort_population_by_fitness(population)
@@ -268,4 +290,4 @@ def get_message_handler(pga_id):
 
 
 if __name__ == "__main__":
-    rnr.run(host="0.0.0.0", debug=True)  # TODO: remove debug mode
+    rnr.run(host="0.0.0.0")
