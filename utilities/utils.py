@@ -12,12 +12,14 @@ __PROPERTIES = {}
 __EVALUATED_INDIVIDUALS = []
 
 
+# YAML command
 def parse_yaml(yaml_file_path):
     with open(yaml_file_path, mode="r", encoding="utf-8") as yaml_file:
         content = yaml.safe_load(yaml_file) or {}
     return content
 
 
+# Commands for population and individuals
 def collect_and_reset_received_individuals():
     global __EVALUATED_INDIVIDUALS
     received = __EVALUATED_INDIVIDUALS
@@ -41,6 +43,8 @@ def split_population_into_pairs(population):
     half_point = population.__len__() / 2
     if half_point < 1:
         raise Exception("Cannot split array with less than two items into Pair's!")
+
+    logging.info("Splitting population.")
 
     first = population[:half_point]
     second = population[half_point:]
