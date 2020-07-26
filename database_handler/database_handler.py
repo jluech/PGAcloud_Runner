@@ -8,7 +8,11 @@ class DatabaseHandler(ABC):
         pass
 
     @abstractmethod
-    def store(self, properties_list):
+    def store_properties(self, properties_list):
+        pass
+
+    @abstractmethod
+    def store_population(self, population):
         pass
 
     @abstractmethod
