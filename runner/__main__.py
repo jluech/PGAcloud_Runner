@@ -248,8 +248,8 @@ def stop_pga(pga_id, population):
     database_handler = get_database_handler(pga_id)
 
     # Store population and determine fittest individual.
-    logging.info("Storing final population.")
     sorted_population = utils.sort_population_by_fitness(population)
+    logging.info("Storing final population with {amount_} individuals.".format(amount_=sorted_population.__len__()))
     database_handler.store_population(sorted_population)
     fittest = sorted_population[0]
 
