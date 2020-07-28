@@ -30,7 +30,8 @@ def collect_and_reset_received_individuals():
 def save_received_individual(individual):
     global __EVALUATED_INDIVIDUALS
     __EVALUATED_INDIVIDUALS.append(individual)
-    return __EVALUATED_INDIVIDUALS.__len__() >= int(get_property("POPULATION_SIZE"))
+    current_length = __EVALUATED_INDIVIDUALS.__len__()
+    return current_length >= int(get_property("POPULATION_SIZE")), current_length
 
 
 def sort_population_by_fitness(population):

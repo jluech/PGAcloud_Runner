@@ -4,24 +4,23 @@ import logging
 import pika
 
 from message_handler.message_handler import MessageHandler
-from population.individual import IndividualDecoder, IndividualEncoder
+from population.individual import Individual, IndividualEncoder
 from utilities import utils
-
-QUEUE_NAME = "generation"  # TODO: retrieve each time from utils.get_messaging_source()
 
 
 def receive_evaluated_individuals_callback(channel, method, properties, body):
     queue_name = utils.get_messaging_source()
-    payload_dict = json.loads(body.decode("utf-8"), cls=IndividualDecoder)
-    population = payload_dict.get("payload")
-    logging.info(body)  # TODO: remove
-    logging.info(payload_dict)  # TODO: remove
-    logging.info("rMQ:{queue_}: Received evaluated individuals: {pop_}".format(
+
+    ind_dict = json.loads(body)
+    individual = Individual(ind_dict["solution"], ind_dict["fitness"])
+
+    received_all, individual_number = utils.save_received_individual(individual)
+    logging.info("rMQ:{queue_}: Received evaluated individual #{nr_}: {ind_}".format(
         queue_=queue_name,
-        pop_=population,
+        nr_=individual_number,
+        ind_=individual,
     ))
 
-    received_all = utils.save_received_individual(body)
     if received_all:
         channel.stop_consuming()
         logging.info("rMQ:{queue_}: Stopped consuming.".format(
@@ -77,9 +76,6 @@ class RabbitMessageQueue(MessageHandler):
             queue_=queue_name
         ))
         channel.start_consuming()
-
-        # Close connection when finished. TODO: check if prematurely closing connection
-        self.connection.close()
 
     def send_message(self, individuals, next_recipient):
         # Define communication channel.
