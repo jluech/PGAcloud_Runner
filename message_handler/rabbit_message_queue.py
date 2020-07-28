@@ -86,27 +86,29 @@ class RabbitMessageQueue(MessageHandler):
             next_recipient=next_recipient,
         )
 
-    def send_broadcast_to_init(self, amount):
+    def send_multiple_to_init(self, individuals_amount, nodes_amount):
         # Define communication channel.
         channel = self.connection.channel()
 
-        # Create the exchange if it doesn't exist already.
-        exchange_name = utils.get_messaging_init_gen()
-        channel.exchange_declare(exchange=exchange_name, exchange_type="fanout", auto_delete=True, durable=True)
+        # Create the queue if it doesn't exist already.
+        queue_name = utils.get_messaging_init_gen()
+        channel.queue_declare(queue=queue_name, auto_delete=True, durable=True)
 
         # Send message to given recipient.
-        logging.info("rMQ: Sending '{body_}' to '{init_}'.".format(
-            body_=amount,
-            init_=exchange_name,
+        logging.info("rMQ: Sending '{body_}' to '{init_}' for {nodes_} nodes.".format(
+            body_=individuals_amount,
+            init_=queue_name,
+            nodes_=nodes_amount,
         ))
-        channel.basic_publish(
-            exchange=exchange_name,
-            routing_key="",
-            body=json.dumps(amount),
-            # Delivery mode 2 makes the broker save the message to disk.
-            # This will ensure that the message be restored on reboot even
-            # if RabbitMQ crashes before having forwarded the message.
-            properties=pika.BasicProperties(
-                delivery_mode=2,
-            ),
-        )
+        for i in range(0, nodes_amount):
+            channel.basic_publish(
+                exchange="",
+                routing_key=queue_name,
+                body=json.dumps(individuals_amount),
+                # Delivery mode 2 makes the broker save the message to disk.
+                # This will ensure that the message be restored on reboot even
+                # if RabbitMQ crashes before having forwarded the message.
+                properties=pika.BasicProperties(
+                    delivery_mode=2,
+                ),
+            )
