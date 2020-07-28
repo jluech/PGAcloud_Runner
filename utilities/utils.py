@@ -1,4 +1,6 @@
 import logging
+import math
+import operator
 import os
 from re import match
 
@@ -20,7 +22,7 @@ def parse_yaml(yaml_file_path):
 # Commands for population and individuals
 def collect_and_reset_received_individuals():
     global __EVALUATED_INDIVIDUALS
-    received = __EVALUATED_INDIVIDUALS
+    received = sort_population_by_fitness(__EVALUATED_INDIVIDUALS)
     __EVALUATED_INDIVIDUALS = []
     return received
 
@@ -33,7 +35,7 @@ def save_received_individual(individual):
 
 def sort_population_by_fitness(population):
     # Sorts and returns population by fitness, in descending order (fittest first).
-    return population.sort(key=lambda ind: ind.fitness, reverse=True)
+    return sorted(population, key=operator.attrgetter("fitness"), reverse=True)
 
 
 def split_population_into_pairs(population):
