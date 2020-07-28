@@ -100,9 +100,8 @@ def init_population(pga_id):
 
         # Send individuals to fitness evaluation.
         next_recipient = utils.get_messaging_init_eval()
-        pairs = utils.split_population_into_pairs(population)
-        for pair in pairs:
-            message_handler.send_message(individuals=pair, next_recipient=next_recipient)
+        for individual in population:
+            message_handler.send_message(individuals=individual, next_recipient=next_recipient)
 
         # Store current population.
         database_handler = get_database_handler(pga_id)
@@ -195,12 +194,10 @@ def run_pga(pga_id):
         elite_portion = math.floor(population.__len__() * elitism_rate)
         elite = population[:elite_portion]
 
-        # Package population into individuals and release to model.
-        pairs = utils.split_population_into_pairs(population)
+        # Release entire population to model.
         logging.info("Releasing population to model.")
         next_recipient = utils.get_messaging_pga()
-        for pair in pairs:
-            message_handler.send_message(pair, next_recipient)
+        message_handler.send_message(individuals=population, next_recipient=next_recipient)
 
         # Listen to FE queue.
         message_handler.receive_messages()

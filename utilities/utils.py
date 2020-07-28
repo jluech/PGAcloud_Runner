@@ -1,5 +1,4 @@
 import logging
-import math
 import operator
 import os
 from re import match
@@ -37,27 +36,6 @@ def save_received_individual(individual):
 def sort_population_by_fitness(population):
     # Sorts and returns population by fitness, in descending order (fittest first).
     return sorted(population, key=operator.attrgetter("fitness"), reverse=True)
-
-
-def split_population_into_pairs(population):
-    # Splits the population and returns an array of Individual pairs.
-    total_length = population.__len__()
-    half_point = math.floor(total_length / 2)
-    if half_point < 1:
-        raise Exception("Cannot split array with less than two items into Pair's!")
-
-    logging.info("Splitting population.")
-
-    first = population[:half_point]
-    second = population[half_point:]
-    if total_length % 2 > 0:
-        first.append(population[-1])
-        # e.g., split [1,2,3,4,5]: first=[1,2], second=[3,4,5] => append first=[1,2,5] to even out
-
-    pairs = []
-    for i in range(half_point):
-        pairs.append([first[i], second[i]])
-    return pairs
 
 
 # Commands for properties
