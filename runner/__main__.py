@@ -189,9 +189,11 @@ def run_pga(pga_id):
             logging.info("ATTENTION: Aborting PGA!")
             break
 
-        # Apply elitism.
+        # Apply elitism. Ensure at least the very best individual is transferred to the next generation.
         logging.info("Applying elitism to current population.")
         elite_portion = math.floor(population.__len__() * elitism_rate)
+        if not elite_portion > 0:
+            elite_portion = 1
         elite = population[:elite_portion]
 
         # Release entire population to model.
@@ -205,7 +207,7 @@ def run_pga(pga_id):
 
         # Crop new population if too large.
         if new_individuals.__len__() > population_size:
-            logging.info("Cropping oversized population! Expected {exp_} - Actual {act_}".format(
+            warnings.warn("Cropping oversized population! Expected {exp_} - Actual {act_}".format(
                 exp_=population_size,
                 act_=new_individuals.__len__()
             ))
