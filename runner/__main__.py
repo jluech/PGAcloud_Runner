@@ -11,7 +11,6 @@ from database_handler.redis_handler import RedisHandler
 from message_handler.handlers import MessageHandlers
 from message_handler.rabbit_message_queue import RabbitMessageQueue
 from population.individual import Individual, IndividualEncoder
-from population.pair import Pair
 from utilities import utils
 
 logging.basicConfig(level=logging.INFO)
@@ -75,10 +74,6 @@ def init_population(pga_id):
 
     # Retrieve first recipients: initialization is index 0 to 2, rest is pga chain
     message_handler = get_message_handler(pga_id)
-    fitness_destination = utils.get_messaging_init()[1]
-    runner_destination = utils.get_messaging_init()[2]
-    # next_destinations = [fitness_destination, runner_destination]
-    next_destinations = [runner_destination]  # TODO: replace with original
 
     if generate_population:
         total_pop_size = config_dict.get("properties").get("POPULATION_SIZE")
@@ -93,11 +88,7 @@ def init_population(pga_id):
                         nodes_=init_nodes_amount,
                         split_=split_amount
                         ))
-
-        init_destination = utils.get_messaging_init()[0]
-        next_destinations.insert(0, init_destination)
-
-        message_handler.send_broadcast_to_init(amount=split_amount, next_destinations=next_destinations)
+        message_handler.send_broadcast_to_init(amount=split_amount)
     else:
         # Read and parse provided population.
         population_path = config_dict.get("population").get("population_file_path")
@@ -107,8 +98,10 @@ def init_population(pga_id):
             population.append(Individual(solution))
 
         # Send individuals to fitness evaluation.
-        for ind in population:
-            message_handler.send_message(individual=ind, remaining_destinations=next_destinations)
+        next_recipient = utils.get_messaging_init_eval()
+        pairs = utils.split_population_into_pairs(population)
+        for pair in pairs:
+            message_handler.send_message(individuals=pair, next_recipient=next_recipient)
 
         # Store current population.
         database_handler = get_database_handler(pga_id)
@@ -120,12 +113,8 @@ def init_population(pga_id):
 @rnr.route("/<int:pga_id>/start", methods=["PUT"])
 def start_pga(pga_id):
     message_handler = get_message_handler(pga_id)
-    SEL = "selection"
-    CO = "crossover"
-    MUT = "mutation"
-    runner = "generation"
-    next_destinations = [SEL, CO, MUT, runner]
-    message_handler.send_message(Pair(Individual("100"), Individual("001")), next_destinations)
+    next_recipient = utils.get_messaging_pga()
+    message_handler.send_message([Individual("100"), Individual("001")], next_recipient)
     # TODO: remove entire message chain here since it's only for roundtrip testing
 
     population = run_pga(pga_id)
@@ -211,10 +200,10 @@ def run_pga(pga_id):
 
         # Package population into individuals and release to model.
         logging.info("Releasing population to model.")
-        individuals = utils.split_population_into_pairs(sorted_population)
-        pga_chain = utils.get_messaging_chain()
-        for ind in individuals:
-            message_handler.send_message(ind, pga_chain)
+        pairs = utils.split_population_into_pairs(sorted_population)
+        next_recipient = utils.get_messaging_pga()
+        for pair in pairs:
+            message_handler.send_message(pair, next_recipient)
 
         # Listen to FE queue.
         message_handler.receive_messages()

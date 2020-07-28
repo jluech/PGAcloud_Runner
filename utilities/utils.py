@@ -4,8 +4,6 @@ from re import match
 
 import yaml
 
-from population.pair import Pair
-
 PGA_NAME_SEPARATOR = "--"
 __CONTAINER_CONF = None
 __PROPERTIES = {}
@@ -39,7 +37,7 @@ def sort_population_by_fitness(population):
 
 
 def split_population_into_pairs(population):
-    # Splits the population and returns an array of Pair's.
+    # Splits the population and returns an array of Individual pairs.
     half_point = population.__len__() / 2
     if half_point < 1:
         raise Exception("Cannot split array with less than two items into Pair's!")
@@ -51,9 +49,12 @@ def split_population_into_pairs(population):
     if half_point % 2 > 0:
         first.append(population[-1])
 
+    logging.info(first)  # TODO: remove
+    logging.info(second)
+
     pairs = []
     for i in range(half_point):
-        pairs.append(Pair(first[i], second[i]))
+        pairs.append([first[i], second[i]])
     return pairs
 
 
@@ -64,16 +65,22 @@ def get_messaging_source():
     return __CONTAINER_CONF["source"]
 
 
-def get_messaging_init():
+def get_messaging_init_gen():
     if not __CONTAINER_CONF:
         __retrieve_container_config()
-    return __CONTAINER_CONF["init"]
+    return __CONTAINER_CONF["init_gen"]
 
 
-def get_messaging_chain():
+def get_messaging_init_eval():
     if not __CONTAINER_CONF:
         __retrieve_container_config()
-    return __CONTAINER_CONF["chain"]
+    return __CONTAINER_CONF["init_eval"]
+
+
+def get_messaging_pga():
+    if not __CONTAINER_CONF:
+        __retrieve_container_config()
+    return __CONTAINER_CONF["pga"]
 
 
 def get_pga_id():
@@ -84,17 +91,21 @@ def get_pga_id():
 
 def __retrieve_container_config():
     # Retrieve locally saved config file.
-    files = [f for f in os.listdir("/") if match(r'[0-9]+--selection-config\.yml', f)]
+    files = [f for f in os.listdir("/") if match(r'[0-9]+--runner-config\.yml', f)]
     # https://stackoverflow.com/questions/2225564/get-a-filtered-list-of-files-in-a-directory/2225927#2225927
     # https://regex101.com/
 
     if not files.__len__() > 0:
         raise Exception("Error retrieving the container config: No matching config file found!")
     config = parse_yaml("/{}".format(files[0]))
-    __CONTAINER_CONF["pga_id"] = config.get("pga_id")
-    __CONTAINER_CONF["source"] = config.get("source")
-    __CONTAINER_CONF["init"] = config.get("init")
-    __CONTAINER_CONF["chain"] = config.get("chain")
+    global __CONTAINER_CONF
+    __CONTAINER_CONF = {
+        "pga_id": config.get("pga_id"),
+        "source": config.get("source"),
+        "init_gen": config.get("init_gen"),
+        "init_eval": config.get("init_eval"),
+        "pga": config.get("pga")
+    }
     logging.info("Container config retrieved: {conf_}".format(conf_=__CONTAINER_CONF))
 
 
