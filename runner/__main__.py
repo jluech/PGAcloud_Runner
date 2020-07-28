@@ -230,10 +230,13 @@ def run_pga(pga_id):
         generations_done += 1
         if old_fittest.fitness >= population[0].fitness:
             unimproved_generations += 1
-            logging.info("Finished generation {gen_} - unimproved.".format(gen_=generations_done))
+            logging.info("Finished generation #{gen_} - unimproved #{unimp_}.".format(
+                gen_=generations_done,
+                unimp_=unimproved_generations,
+            ))
         else:
             unimproved_generations = 0
-            logging.info("Finished generation {gen_} - improved individuals.".format(gen_=generations_done))
+            logging.info("Finished generation #{gen_} - improved individuals.".format(gen_=generations_done))
         pga_runtime = time.perf_counter() - pga_start_time
 
     return population
