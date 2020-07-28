@@ -57,10 +57,17 @@ class RabbitMessageQueue(MessageHandler):
             host="rabbitMQ--{id_}".format(id_=pga_id),
             socket_timeout=30,
         ))
+        self.channel_receive_generation = None
+        self.channel_send_init = None
+        self.channel_send_any = {}
 
     def receive_messages(self):
         # Define communication channel.
-        channel = self.connection.channel()
+        if self.channel_receive_generation is None:
+            channel = self.connection.channel()
+            self.channel_receive_generation = channel
+        else:
+            channel = self.channel_receive_generation
 
         # Create queue for returning individuals as end of one generation.
         queue_name = utils.get_messaging_source()
@@ -79,7 +86,13 @@ class RabbitMessageQueue(MessageHandler):
 
     def send_message(self, individuals, next_recipient):
         # Define communication channel.
-        channel = self.connection.channel()
+        channel_keys = [*self.channel_send_any]
+        if channel_keys.__len__() > 0 and channel_keys.__contains__(next_recipient):
+            channel = self.channel_send_any[next_recipient]
+        else:
+            channel = self.connection.channel()
+            self.channel_send_any[next_recipient] = channel
+
         send_message_to_queue(
             channel=channel,
             payload=individuals,
@@ -88,7 +101,11 @@ class RabbitMessageQueue(MessageHandler):
 
     def send_multiple_to_init(self, individuals_amount, nodes_amount):
         # Define communication channel.
-        channel = self.connection.channel()
+        if self.channel_send_init is None:
+            channel = self.connection.channel()
+            self.channel_send_init = channel
+        else:
+            channel = self.channel_send_init
 
         # Create the queue if it doesn't exist already.
         queue_name = utils.get_messaging_init_gen()
