@@ -93,6 +93,7 @@ def init_population(pga_id):
         # Read and parse provided population.
         population_path = config_dict.get("population").get("population_file_path")
         solutions = utils.parse_yaml(population_path)
+        logging.info(solutions)  # TODO: remove
         population = []
         for solution in solutions:
             population.append(Individual(solution))
@@ -112,11 +113,6 @@ def init_population(pga_id):
 
 @rnr.route("/<int:pga_id>/start", methods=["PUT"])
 def start_pga(pga_id):
-    message_handler = get_message_handler(pga_id)
-    next_recipient = utils.get_messaging_pga()
-    message_handler.send_message([Individual("100"), Individual("001")], next_recipient)
-    # TODO: remove entire message chain here since it's only for roundtrip testing
-
     population = run_pga(pga_id)
     fittest = stop_pga(pga_id, population)
 
@@ -154,8 +150,10 @@ def run_pga(pga_id):
     elitism_rate = float(utils.get_property("ELITISM_RATE"))
 
     # Initialize population and settings.
+    logging.info("Collecting evaluated initial population.")
     message_handler.receive_messages()
     population = utils.collect_and_reset_received_individuals()
+
     population_size = int(utils.get_property("POPULATION_SIZE"))
     # Crop population if too large.
     if population.__len__() > population_size:
@@ -183,7 +181,6 @@ def run_pga(pga_id):
         logging.info("Starting new generation: {gen_}".format(gen_=generations_done+1))
 
         # Store population in database.
-        logging.info("Storing population.")
         database_handler.store_population(population)
         old_fittest = population[0]
 
@@ -194,13 +191,12 @@ def run_pga(pga_id):
 
         # Apply elitism.
         logging.info("Applying elitism to current population.")
-        sorted_population = utils.sort_population_by_fitness(population)
-        elite_portion = math.floor(sorted_population.__len__() * elitism_rate)
-        elite = sorted_population[:elite_portion]
+        elite_portion = math.floor(population.__len__() * elitism_rate)
+        elite = population[:elite_portion]
 
         # Package population into individuals and release to model.
+        pairs = utils.split_population_into_pairs(population)
         logging.info("Releasing population to model.")
-        pairs = utils.split_population_into_pairs(sorted_population)
         next_recipient = utils.get_messaging_pga()
         for pair in pairs:
             message_handler.send_message(pair, next_recipient)
@@ -213,13 +209,13 @@ def run_pga(pga_id):
         if new_individuals.__len__() > population_size:
             logging.info("Cropping oversized population! Expected {exp_} - Actual {act_}".format(
                 exp_=population_size,
-                act_=population.__len__()
+                act_=new_individuals.__len__()
             ))
             new_individuals = new_individuals[:population_size]
         elif new_individuals.__len__() < population_size:
             warnings.warn("Population not large enough! Expected {exp_} - Actual {act_}".format(
                 exp_=population_size,
-                act_=population.__len__()
+                act_=new_individuals.__len__()
             ))
 
         # Combine elite and returning individuals, sort by fitness.
@@ -260,8 +256,8 @@ def stop_pga(pga_id, population):
     return fittest
 
 
-def select_survivors(sorted_population, kill_ratio):
-    return sorted_population[:-kill_ratio]  # fittest first, so remove at back end.
+def select_survivors(sorted_population, kill_portion):
+    return sorted_population[:-kill_portion]  # fittest first, so remove at back end.
 
 
 def get_database_handler(pga_id):
