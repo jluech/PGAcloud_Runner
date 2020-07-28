@@ -41,7 +41,8 @@ def sort_population_by_fitness(population):
 
 def split_population_into_pairs(population):
     # Splits the population and returns an array of Individual pairs.
-    half_point = population.__len__() / 2
+    total_length = population.__len__()
+    half_point = math.floor(total_length / 2)
     if half_point < 1:
         raise Exception("Cannot split array with less than two items into Pair's!")
 
@@ -49,11 +50,9 @@ def split_population_into_pairs(population):
 
     first = population[:half_point]
     second = population[half_point:]
-    if half_point % 2 > 0:
+    if total_length % 2 > 0:
         first.append(population[-1])
-
-    logging.info(first)  # TODO: remove
-    logging.info(second)
+        # e.g., split [1,2,3,4,5]: first=[1,2], second=[3,4,5] => append first=[1,2,5] to even out
 
     pairs = []
     for i in range(half_point):
