@@ -88,7 +88,7 @@ def init_population(pga_id):
                         nodes_=init_nodes_amount,
                         split_=split_amount
                         ))
-        message_handler.send_broadcast_to_init(amount=split_amount)
+        message_handler.send_multiple_to_init(individuals_amount=split_amount, nodes_amount=init_nodes_amount)
     else:
         # Read and parse provided population.
         population_path = config_dict.get("population").get("population_file_path")
