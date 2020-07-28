@@ -1,6 +1,6 @@
-from json import JSONEncoder, JSONDecoder
+from json import JSONEncoder
 
-DEFAULT_FITNESS = 0
+DEFAULT_FITNESS = 0.0
 
 
 class Individual(object):
@@ -8,14 +8,12 @@ class Individual(object):
         self.solution = solution
         self.fitness = fitness if fitness else DEFAULT_FITNESS
 
+    def __repr__(self):
+        return '{"solution": ' + self.solution + '; "fitness": ' + str(self.fitness) + '}'
+
 
 # Make class JSON serializable:
 # https://pynative.com/make-python-class-json-serializable/
 class IndividualEncoder(JSONEncoder):
     def default(self, obj):
         return obj.__dict__
-
-
-class IndividualDecoder(JSONDecoder):
-    def default(self, obj):
-        return Individual(obj["solution"], obj["fitness"])
