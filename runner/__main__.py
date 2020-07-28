@@ -154,8 +154,8 @@ def run_pga(pga_id):
     message_handler.receive_messages()
     population = utils.collect_and_reset_received_individuals()
 
-    population_size = int(utils.get_property("POPULATION_SIZE"))
     # Crop population if too large.
+    population_size = int(utils.get_property("POPULATION_SIZE"))
     if population.__len__() > population_size:
         warnings.warn("Population too large! Expected {exp_} - Actual {act_}".format(
             exp_=population_size,
@@ -175,6 +175,7 @@ def run_pga(pga_id):
     pga_runtime = 0
     pga_start_time = time.perf_counter()
 
+    # Run generations.
     while (generations_done < max_generations
            and unimproved_generations < max_unimproved_generations
            and pga_runtime < max_time_seconds):
