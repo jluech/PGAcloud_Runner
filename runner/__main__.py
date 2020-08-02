@@ -50,12 +50,6 @@ def init_properties(pga_id):
     database = get_database_handler(pga_id)
     database.store_properties(properties_dict)
 
-    # Log confirmation.
-    stored_properties = {}
-    for key in [*properties_dict]:
-        stored_properties[key] = database.retrieve(key)
-    logging.info("Successfully stored properties: {stored_}".format(stored_=stored_properties))
-
     return make_response(jsonify(None), 204)
 
 
@@ -143,8 +137,8 @@ def run_pga(pga_id):
     max_time_seconds = config_dict.get("properties").get("MAX_TIME_SECONDS")
 
     # Set relevant properties.
-    for prop in RELEVANT_PROPERTIES:  # TODO: retrieve relevant list from container config file?
-        value = database_handler.retrieve(prop)
+    for prop in RELEVANT_PROPERTIES:
+        value = database_handler.retrieve_item(prop)
         utils.set_property(prop, value)
     elitism_rate = float(utils.get_property("ELITISM_RATE"))
 

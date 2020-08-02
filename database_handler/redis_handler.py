@@ -15,24 +15,28 @@ class RedisHandler(DatabaseHandler):
         prop_keys = [*properties_dict]
         for prop_key in prop_keys:
             value = properties_dict[prop_key]
-            if not type(value) in [str, int]:
+            if not type(value) in [str, int, list]:
                 value = str(value)
             logging.info("redis: Storing property '{prop_}'={val_}".format(
                 prop_=prop_key,
                 val_=value,
             ))
-            self.redis.set(prop_key, value)
+            if type(value) is list:
+                for val in value:
+                    self.redis.lpush(prop_key, val)
+            else:
+                self.redis.set(prop_key, value)
 
     def store_population(self, population):
-        serialized_population = "["
-        for individual in population[:-1]:
-            serialized_population += json.dumps(individual, cls=IndividualEncoder) + ", "
-        serialized_population += json.dumps(population[-1], cls=IndividualEncoder)
-        serialized_population += "]"
         logging.info("redis: Storing population {pop_}".format(
-            pop_=serialized_population,
+            pop_=population,
         ))
-        self.redis.set("population", serialized_population)
+        for individual in population:
+            serialized_individual = json.dumps(individual, cls=IndividualEncoder)
+            self.redis.lpush("population", serialized_individual)
 
-    def retrieve(self, property_name):
+    def retrieve_item(self, property_name):
         return self.redis.get(property_name)
+
+    def retrieve_list(self, property_name):
+        return self.redis.lrange(property_name, 0, -1)
