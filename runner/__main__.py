@@ -20,6 +20,7 @@ MESSAGE_HANDLER = MessageHandlers.RabbitMQ
 RELEVANT_PROPERTIES = ["POPULATION_SIZE", "ELITISM_RATE"]
 
 __ABORTING = False
+__FINISHED = False
 
 
 # App initialization.
@@ -33,7 +34,6 @@ def status():
 
 @rnr.route("/<int:pga_id>/properties", methods=["PUT"])
 def init_properties(pga_id):
-    # TODO 106: need to transmit properties with request or is docker config enough?
     # Prepare properties to store.
     properties_dict = utils.parse_yaml("/{id_}{sep_}config.yml".format(
                 id_=pga_id,
@@ -115,10 +115,17 @@ def start_pga(pga_id):
     }), 204)
 
 
-@rnr.route("/stop")
+@rnr.route("/stop", methods=["PUT"])
 def abort_pga():
     global __ABORTING
     __ABORTING = True
+    timer = 0
+    start = time.perf_counter()
+
+    global __FINISHED
+    while not __FINISHED and timer < 10:
+        time.sleep(1)
+        timer = time.perf_counter() - start
     return make_response(jsonify(None), 202)
 
 
@@ -250,6 +257,8 @@ def stop_pga(pga_id, population):
         fit_=fittest.fitness,
         sol_=fittest.solution,
     ))
+    global __FINISHED
+    __FINISHED = True
     return fittest
 
 
