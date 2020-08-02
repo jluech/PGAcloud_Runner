@@ -16,5 +16,9 @@ class DatabaseHandler(ABC):
         pass
 
     @abstractmethod
-    def retrieve(self, property_name):
+    def retrieve_item(self, property_name):
+        pass
+
+    @abstractmethod
+    def retrieve_list(self, property_name):
         pass
