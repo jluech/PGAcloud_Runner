@@ -99,7 +99,7 @@ class RabbitMessageQueue(MessageHandler):
             next_recipient=next_recipient,
         )
 
-    def send_multiple_to_init(self, individuals_amount, nodes_amount):
+    def send_multiple_to_init(self, individuals_amount):
         # Define communication channel.
         if self.channel_send_init is None:
             channel = self.connection.channel()
@@ -112,16 +112,19 @@ class RabbitMessageQueue(MessageHandler):
         channel.queue_declare(queue=queue_name, auto_delete=True, durable=True)
 
         # Send message to given recipient.
-        logging.info("rMQ: Sending '{body_}' to '{init_}' for {nodes_} nodes.".format(
-            body_=individuals_amount,
-            init_=queue_name,
-            nodes_=nodes_amount,
-        ))
-        for i in range(0, nodes_amount):
+        for i in range(0, individuals_amount):
+            payload = {
+                "amount": 1,
+                "id": i,
+            }
+            logging.info("rMQ: Sending '{body_}' to '{init_}'.".format(
+                body_=payload,
+                init_=queue_name,
+            ))
             channel.basic_publish(
                 exchange="",
                 routing_key=queue_name,
-                body=json.dumps(individuals_amount),
+                body=json.dumps(payload),
                 # Delivery mode 2 makes the broker save the message to disk.
                 # This will ensure that the message be restored on reboot even
                 # if RabbitMQ crashes before having forwarded the message.

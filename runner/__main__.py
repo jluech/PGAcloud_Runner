@@ -73,18 +73,13 @@ def init_population(pga_id):
 
     if generate_population:
         total_pop_size = config_dict.get("properties").get("POPULATION_SIZE")
-        init_nodes_amount = config_dict.get("setups").get("INIT").get("scaling")
-        split_amount = math.ceil(total_pop_size / init_nodes_amount)
         # generate at least as many individuals as required
         # if population size exceeds the POPULATION_SIZE property, the population will be cropped when starting the PGA
 
-        logging.info("Delegating generating {size_} individuals to {nodes_} nodes "
-                     "with {split_} individuals per node.".format(
-                        size_=total_pop_size,
-                        nodes_=init_nodes_amount,
-                        split_=split_amount
-                        ))
-        message_handler.send_multiple_to_init(individuals_amount=split_amount, nodes_amount=init_nodes_amount)
+        logging.info("Delegating generating {size_} individuals.".format(
+            size_=total_pop_size,
+        ))
+        message_handler.send_multiple_to_init(individuals_amount=total_pop_size)
     else:
         # Read and parse provided population.
         population_path = config_dict.get("population").get("population_file_path")
