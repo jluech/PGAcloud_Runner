@@ -82,9 +82,8 @@ def init_population(pga_id):
         message_handler.send_multiple_to_init(individuals_amount=total_pop_size)
     else:
         # Read and parse provided population.
-        population_path = config_dict.get("population").get("population_file_path")
-        solutions = utils.parse_yaml(population_path)
-        logging.info(solutions)  # TODO: remove
+        population_dict = utils.parse_yaml("/{id_}--population.yml".format(id_=pga_id))
+        solutions = population_dict.get("individuals")
         population = []
         for solution in solutions:
             population.append(Individual(solution))
