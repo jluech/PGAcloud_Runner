@@ -15,6 +15,8 @@ from utilities import utils
 
 logging.basicConfig(level=logging.INFO)
 
+WAIT_FOR_TERMINATION = 60  # seconds
+
 DATABASE_HANDLER = DatabaseHandlers.Redis
 MESSAGE_HANDLER = MessageHandlers.RabbitMQ
 RELEVANT_PROPERTIES = ["POPULATION_SIZE", "ELITISM_RATE"]
@@ -112,7 +114,7 @@ def start_pga(pga_id):
     return make_response(jsonify({
         "id": pga_id,
         "fittest": json.dumps(fittest, cls=IndividualEncoder)
-    }), 204)
+    }), 200)
 
 
 @rnr.route("/stop", methods=["PUT"])
@@ -123,7 +125,7 @@ def abort_pga():
     start = time.perf_counter()
 
     global __FINISHED
-    while not __FINISHED and timer < 10:
+    while not __FINISHED and timer < WAIT_FOR_TERMINATION:
         time.sleep(1)
         timer = time.perf_counter() - start
     return make_response(jsonify(None), 202)

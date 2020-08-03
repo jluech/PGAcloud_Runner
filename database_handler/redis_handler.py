@@ -28,9 +28,7 @@ class RedisHandler(DatabaseHandler):
                 self.redis.set(prop_key, value)
 
     def store_population(self, population):
-        logging.info("redis: Storing population {pop_}".format(
-            pop_=population,
-        ))
+        logging.info("redis: Storing population.")
         for individual in population:
             serialized_individual = json.dumps(individual, cls=IndividualEncoder)
             self.redis.lpush("population", serialized_individual)
